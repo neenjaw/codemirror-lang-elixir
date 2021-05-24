@@ -1,26 +1,125 @@
 @top Program { expression* }
 
-@skip { space | LineComment }
-
-expression {
+expression[@isGroup=Expression] {
   Identifier |
-  String |
-  Boolean |
-  Application { "(" expression* ")" }
+  Number |
+  Atom |
+  StringLiteral |
+  CharlistLiteral |
+  HeredocsLiteral |
+  TupleLiteral |
+  MapLiteral |
+
+  MatchExpression
 }
 
+MatchExpression {
+  expression "=" expression
+}
+
+Identifier {
+  identifier ~identifier |
+  [@dynamicPrecedence=-1] { capitalIdentifier ~identifier}
+}
+
+Block {
+  "do" expression* "end"
+}
+
+BlockOneLiner {
+  ", do:" expression
+}
+
+MapLiteral {
+  "%{" mapPair ("," mapPair)* "}"
+}
+
+mapPair {
+  (expression "=>" expression) |
+  ((identifier | StringLiteral) ":" expression)
+}
+
+TupleLiteral {
+  "{" expression ("," expression)* "}"
+}
+
+@skip { whitespace | LineComment }
+
 @tokens {
-  Identifier { $[a-zA-Z_\-0-9]+ }
+  space { $[ \t]+ }
 
-  String { '"' (!["\\] | "\\" _)* '"' }
+  whitespace {
+    std.whitespace+
+  }
 
-  Boolean { "#t" | "#f" }
+  digits {
+    $[0-9]+ ("_" $[0-9]+)*
+  }
 
-  LineComment { ";" ![\n]* }
+  hexDigits {
+    $[A-Fa-f0-9]+ ("_" $[A-Fa-f0-9]+)
+  }
 
-  space { $[ \t\n\r]+ }
+  IntegerLiteral {
+    (
+      digits |
+      "0x" hexDigits |
+      "0o" $[0-7]+ ("_" $[0-7]+)* |
+      "0b" $[01]+ ("_" $[01]+)*
+    )
+  }
 
-  "(" ")"
+  exponent {
+    $[eE] ("-" | "+")? digits
+  }
+
+  FloatingPointLiteral {
+    digits ("." digits+ exponent?)
+  }
+
+  Number {
+    IntegerLiteral | FloatingPointLiteral
+  }
+
+  @precedence { FloatingPointLiteral, IntegerLiteral }
+
+  CharlistLiteral {
+    "'" (![\\'\n] | "\\" ![\n] | "\\\n")+ "'"
+  }
+
+  StringLiteral {
+    "\"" (![\\"\n] | "\\" (![\n] | "\n"))+ "\""
+  }
+
+  Atom {
+    ":" (identifier | StringLiteral)
+  }
+
+  Module {
+    capitalIdentifier ("." capitalIdentifier)*
+  }
+
+  heredocQuotes {
+    "\"\"\""
+  }
+
+  HeredocsLiteral {
+    heredocQuotes space? "\n" (![\n]+ "\n")* space? heredocQuotes
+  }
+
+  LineComment {
+    "#" ![\n]*
+  }
+
+  identifier {
+    $[a-z_] $[a-zA-Z0-9_]*
+  }
+
+  capitalIdentifier {
+    $[A-Z] $[a-zA-Z0-9_]*
+  }
+
+  "(" ")" "%{" "{" "}" "[" "]" "." "," ":" "->" "=>" "<<" ">>"
 }
 
 @detectDelim
