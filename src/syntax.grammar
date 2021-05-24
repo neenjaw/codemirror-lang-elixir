@@ -1,4 +1,58 @@
-@top Program { expression* }
+@precedence {
+  unary,
+  times @left,
+  plus @left,
+  set @right,
+  member @left,
+  transitive @left
+  compare @left,
+  equality @left,
+  and @left,
+  or @left,
+  match @right,
+  capture,
+  inside @right,
+  resulting @right,
+  when @right,
+  neck @left,
+  default @left
+}
+
+@top Program { (moduleDefinition | expression)* }
+
+moduleDefinition {
+  kw<"defmodule"> ModuleAtom kw<"do"> inModule kw<"end">
+}
+
+inModule {
+  expression |
+  moduleDefinition
+  functionDefinition
+}
+
+functionDefinition {
+  (kw<"def"> | kw<"defp">) identifier argumentList block?
+}
+
+block {
+  blockMultiline |
+  blockOneLiner
+}
+
+blockMultiline {
+  kw<"do"> expression* kw<"end">
+}
+
+blockOneLiner {
+  "," kw<"do"> ":" expression
+}
+
+argumentList {
+  "(" (
+    identifier |
+    (identifier "=" (Number | StringLiteral | CharlistLiteral | TupleLiteral | MapLiteral ))
+  )* ")"
+}
 
 expression[@isGroup=Expression] {
   Identifier |
@@ -10,24 +64,38 @@ expression[@isGroup=Expression] {
   TupleLiteral |
   MapLiteral |
 
-  MatchExpression
+  BinaryExpression |
+  UnaryExpression
 }
 
-MatchExpression {
-  expression "=" expression
+BinaryExpression {
+  expression !times op<Arith, "*" | "/"> expression |
+  expression !plus op<Arith, "+" | "-"> expression |
+  expression !set op<Set, "++" | "--" | "+++" | "---" | ".." | "<>"> expression |
+  expression !member (kw<"in"> | (kw<"not"> kw<"in">)) expression |
+  expression !transitive op<Transitive, "|>" | "<<<" | ">>>" | "<<~" | "~>>" | "<~" | "~>" | "<~>" | "<|>"> expression |
+  expression !compare op<Comparison, "<" | ">" | "<=" | ">="> expression |
+  expression !equality op<Equality, "==" | "!=" | "=~" | "===" | "!=="> expression |
+  expression !and (op<Logic, "&&"> | Logic { kw<"and"> } | BitOp { "&&&" }) expression |
+  expression !or (op<Logic, "||"> | Logic { kw<"or"> } | BitOp { "|||" }) expression |
+  expression !match op<Match, "="> expression |
+  expression !inside op<Inside, "|"> expression |
+  expression !resulting op<TypeResult, "::"> expression |
+  expression !when kw<"when"> expression |
+  expression !neck op<Neck, "<-"> expression |
+  expression !default op<Default, "\\"> expression
+}
+
+UnaryExpression {
+  kw<"not"> !unary expression |
+  op<Arith, "+" | "-"> !unary expression |
+  op<Logic, "!" | "^"> !unary expression |
+  op<Bit, "~~~"> !unary expression
 }
 
 Identifier {
   identifier ~identifier |
   [@dynamicPrecedence=-1] { capitalIdentifier ~identifier}
-}
-
-Block {
-  "do" expression* "end"
-}
-
-BlockOneLiner {
-  ", do:" expression
 }
 
 MapLiteral {
@@ -42,6 +110,8 @@ mapPair {
 TupleLiteral {
   "{" expression ("," expression)* "}"
 }
+
+kw<term> { @specialize[@name={term}]<identifier, term> }
 
 @skip { whitespace | LineComment }
 
@@ -95,7 +165,7 @@ TupleLiteral {
     ":" (identifier | StringLiteral)
   }
 
-  Module {
+  ModuleAtom {
     capitalIdentifier ("." capitalIdentifier)*
   }
 
@@ -118,6 +188,8 @@ TupleLiteral {
   capitalIdentifier {
     $[A-Z] $[a-zA-Z0-9_]*
   }
+
+  op[@name={name} "Op"]<name, body> {body}
 
   "(" ")" "%{" "{" "}" "[" "]" "." "," ":" "->" "=>" "<<" ">>"
 }
