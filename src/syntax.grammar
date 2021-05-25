@@ -50,22 +50,28 @@ blockOneLiner {
 argumentList {
   "(" (
     identifier |
-    (identifier "=" (Number | StringLiteral | CharlistLiteral | TupleLiteral | MapLiteral ))
+    (identifier "=" (NumberLiteral | StringLiteral | CharlistLiteral | TupleLiteral | MapLiteral ))
   )* ")"
 }
 
-expression[@isGroup=Expression] {
+literal {
   Identifier |
-  Number |
+  IntegerLiteral |
+  FloatingPointLiteral |
+  @specialize[@name=BooleanLiteral]<identifier, "true" | "false"> |
   Atom |
   StringLiteral |
-  CharlistLiteral |
   HeredocsLiteral |
-  TupleLiteral |
+  CharlistLiteral |
   MapLiteral |
+  TupleLiteral |
+  kw<"nil">
+}
 
+expression[@isGroup=Expression] {
   BinaryExpression |
-  UnaryExpression
+  UnaryExpression |
+  literal
 }
 
 BinaryExpression {
@@ -147,7 +153,7 @@ kw<term> { @specialize[@name={term}]<identifier, term> }
     digits ("." digits+ exponent?)
   }
 
-  Number {
+  NumberLiteral {
     IntegerLiteral | FloatingPointLiteral
   }
 
